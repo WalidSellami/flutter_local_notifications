@@ -1,9 +1,6 @@
 import 'dart:io';
-import 'package:android_intent_plus/android_intent.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -20,6 +17,7 @@ class Notifications {
 
   Future<void> init() async {
 
+    // For Schedule Notifications
     tz.initializeTimeZones();
     final String currentTimeZone = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(currentTimeZone));
@@ -34,35 +32,28 @@ class Notifications {
     );
 
     // Android 13+ permission
-    if (await Permission.notification.isDenied) {
-      await Permission.notification.request();
-    }
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
 
-    // status permission (granted or denied)
-    if (kDebugMode) {
-      print(await Permission.notification.status);
-    }
+    // iOS permission
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
-    // For Android
+    // Schedule Notifications permission For Android
     if (Platform.isAndroid) {
 
-      final androidPlugin =
-      flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+     await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+         ?.requestExactAlarmsPermission();
 
-      final hasPermission =
-          await androidPlugin?.requestExactAlarmsPermission() ?? false;
-
-      if (kDebugMode) {
-        print(hasPermission);
-      }
-
-      if(!hasPermission) {
-        const intent = AndroidIntent(
-          action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
-        );
-        await intent.launch();
-      }
     }
 
   }
